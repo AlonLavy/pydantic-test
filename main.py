@@ -1,10 +1,4 @@
-import json
-from typing import Union, Optional, Literal
-
-import typing_extensions
-
-from pydantic import BaseModel, model_serializer
-from pydantic.main import IncEx
+from pydantic import BaseModel, model_serializer, Field
 from pydantic_core.core_schema import SerializationInfo
 
 
@@ -20,12 +14,18 @@ class DistanceValue(BaseModel):
 
     @model_serializer
     def serialize(self, info: SerializationInfo):
-        return self.value if not info.by_alias else self.__dict__
+        if info.context is None or 'system' not in info.context.keys():
+            raise AttributeError('DistanceValue class expected system in serialization context but could not find it')
+        if info.context['system'] == 'client':
+            return {'hello': self.value, 'world': self.unit}
+        if info.context['system'] == 'engine':
+            return self.value
+
+        else:
+            raise AttributeError('DistanceValue is not aware of system '+info.context['system'])
 
 
 x = DistanceValue(value=10, unit='km')
 y = DistanceValue(20)
-print(x.model_dump(context={'x': 'y'}))
-print(x.model_dump(by_alias=True))
-print(y.model_dump())
-print(y.model_dump(by_alias=True))
+print(x.model_dump(context={'system': 'client'}))
+print(x.model_dump(context={'system': 'engine'}))
